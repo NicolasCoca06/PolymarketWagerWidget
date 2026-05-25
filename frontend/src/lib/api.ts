@@ -1,4 +1,4 @@
-import type { MarketSummary, WagerDraft, WagerPreview } from './types'
+import type { MarketSummary, WagerAdvice, WagerDraft, WagerPreview } from './types'
 
 export class WidgetApi {
   private readonly backendUrl: string
@@ -17,6 +17,13 @@ export class WidgetApi {
 
   async previewWager(draft: WagerDraft) {
     return this.request<WagerPreview>('/api/wagers/preview', {
+      method: 'POST',
+      body: JSON.stringify(draft),
+    })
+  }
+
+  async adviseWager(draft: WagerDraft) {
+    return this.request<WagerAdvice>('/api/wagers/advice', {
       method: 'POST',
       body: JSON.stringify(draft),
     })

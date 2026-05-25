@@ -9,6 +9,7 @@
 - Wager preview and validation
 - MetaMask wallet connection
 - Polymarket deposit wallet flow
+- Explainable AI wager assistant
 - Real CLOB order signing with `POLY_1271`
 
 ## Architecture
@@ -31,7 +32,7 @@ backend/app.py
   ASGI entrypoint only
 
 backend/polymarket_widget/
-  settings, schemas, market discovery, wager building
+  settings, schemas, market discovery, wager building, advice
 ```
 
 ## Widget Usage
@@ -65,9 +66,14 @@ Available props:
 - `GET /api/markets`
 - `GET /api/markets/{condition_id}`
 - `POST /api/wagers/preview`
+- `POST /api/wagers/advice`
 - `POST /api/wagers/place` legacy backend signing endpoint
 
 The product path signs in the browser with the user's wallet. The Python `place` endpoint is retained only as a legacy technical-test boundary and is not exposed in the UI.
+
+The advice endpoint is intentionally explainable: it uses market price, wager price, volume, timing, and exposure to produce a recommendation. It is assistance, not financial advice.
+
+The advice endpoint calls Gemini and returns `source: "llm"`. Missing Gemini credentials return an explicit configuration error.
 
 ## Real Wallet Flow
 
@@ -76,8 +82,8 @@ The product path signs in the browser with the user's wallet. The Python `place`
 3. Switch to Polygon when the widget asks.
 4. Fund with a small amount of USDC on Polygon.
 5. Connect the wallet in the widget.
-6. Click `Prepare` in the deposit wallet box.
-7. If needed, click `Deploy`.
+6. Click `Find wallet` in the deposit wallet box.
+7. If needed, click `Activate wallet`.
 8. Fund the deposit wallet through Polymarket's deposit flow.
 9. Use `Sign without posting` first.
 10. Change to `Post real order` only when intentionally posting a real order.
@@ -92,6 +98,8 @@ The UI does not ask for private keys. Real signing happens in MetaMask.
 
 ## Run Locally
 
+For local evaluation, the reviewer must provide their own Gemini API key. Secrets are intentionally not committed to the repository.
+
 ### Backend
 
 `py_clob_client_v2` requires Python >= 3.9.10. This project uses one local backend venv:
@@ -101,8 +109,31 @@ cd backend
 /opt/homebrew/bin/python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
+```
+
+Edit `backend/.env` and set:
+
+```env
+GEMINI_API_KEY=your_gemini_key
+GEMINI_MODEL=gemini-2.5-flash
+CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
+```
+
+Then start the API:
+
+```bash
 uvicorn app:app --reload --host 127.0.0.1 --port 8000
 ```
+
+You can also export the values instead of using `.env`:
+
+```bash
+export GEMINI_API_KEY="your_gemini_key"
+export GEMINI_MODEL="gemini-2.5-flash"
+```
+
+If `GEMINI_API_KEY` is missing, the `POST /api/wagers/advice` endpoint fails explicitly with `GEMINI_API_KEY is required for Gemini wager advice.`
 
 ### Frontend
 

@@ -26,6 +26,17 @@ export type WagerPreview = {
   warnings: string[]
 }
 
+export type WagerAdvice = {
+  recommendation: 'consider' | 'wait' | 'avoid'
+  confidence: 'low' | 'medium' | 'high'
+  source: 'llm'
+  summary: string
+  signals: string[]
+  risks: string[]
+  nextSteps: string[]
+  disclaimer: string
+}
+
 export type PlaceWagerResponse = {
   preview: WagerPreview
   dryRun: boolean

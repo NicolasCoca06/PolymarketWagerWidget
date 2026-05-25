@@ -25,6 +25,7 @@ def build_wager_preview(
     tick_size = Decimal(str(market.orderPriceMinTickSize or 0.01))
     normalized_price = price.quantize(tick_size, rounding=ROUND_DOWN)
     estimated_cost = normalized_price * size if request.side == OrderSide.buy else Decimal("0")
+    normalized_cost = estimated_cost.quantize(Decimal("0.001"), rounding=ROUND_DOWN)
 
     return WagerPreviewResponse(
         market=market,
@@ -33,7 +34,7 @@ def build_wager_preview(
         side=request.side,
         price=str(normalized_price),
         size=str(size),
-        estimatedCostUsdc=str(estimated_cost),
+        estimatedCostUsdc=format(normalized_cost, "f"),
         minTickSize=str(tick_size),
         negRisk=market.negRisk,
         warnings=[

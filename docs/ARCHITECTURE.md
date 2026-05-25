@@ -2,7 +2,7 @@
 
 
 - The frontend owns wallet connection and wallet-side signing.
-- The backend owns market discovery and wager preview.
+- The backend owns market discovery, wager preview, and explainable advice.
 - Real private keys are not sent to the backend in the professional path.
 - Polymarket deposit wallets are modeled as a first-class step, because real trading requires them.
 
@@ -12,12 +12,14 @@
 React Widget
   - UI composition
   - MetaMask connection
+  - Compact widget workflow
   - Deposit wallet flow
   - CLOB signing/posting with wallet-side EIP-712 signatures
 
 FastAPI Backend
   - Polymarket Gamma market discovery
   - Wager preview and validation
+  - Explainable wager advice
   - Legacy private-key signing endpoint, kept out of the UI
 
 Polymarket
@@ -35,6 +37,8 @@ backend/polymarket_widget/settings.py
 backend/polymarket_widget/schemas.py
 backend/polymarket_widget/markets.py
 backend/polymarket_widget/wagers.py
+backend/polymarket_widget/advisor.py
+backend/polymarket_widget/prompts.py
 backend/polymarket_widget/wallets.py
 backend/polymarket_widget/clob_demo.py
 ```
@@ -49,6 +53,10 @@ backend/polymarket_widget/clob_demo.py
 
 `wagers.py` is pure wager construction and validation.
 
+`advisor.py` is the AI-assistance boundary. It returns an explainable recommendation from market probability, user price, cost, volume, and time-to-resolution signals. It calls Gemini and returns `source: "llm"`. Missing or unavailable Gemini configuration fails explicitly instead of falling back to deterministic rules.
+
+`prompts.py` keeps LLM instructions separate from request orchestration and parsing, so prompt changes are easy to review.
+
 `wallets.py` creates legacy demo wallets only.
 
 `clob_demo.py` keeps private-key signing isolated. It is retained for technical-test compatibility, but the product UI does not expose it.
@@ -62,7 +70,6 @@ frontend/src/lib/browserWallet.ts
 frontend/src/lib/polymarket.ts
 frontend/src/lib/types.ts
 frontend/src/lib/config.ts
-frontend/src/lib/json.ts
 ```
 
 The component is now a composition surface. It coordinates state and renders the workflow, while the domain mechanics live in `lib`.
@@ -74,6 +81,14 @@ The component is now a composition surface. It coordinates state and renders the
 `polymarket.ts` owns SDK integration for deposit wallets, CLOB clients, signing, and posting.
 
 `types.ts` is the shared frontend vocabulary.
+
+The widget flow is intentionally step-based:
+
+```text
+Market -> Wager -> Insight -> Review -> Confirmation
+```
+
+`Review` is only available after a preview exists, and the final signing/posting action requires an explicit confirmation dialog.
 
 ## Security Posture
 
@@ -104,5 +119,6 @@ The project is considered healthy when:
 - `npm run build` passes.
 - `GET /api/health` returns `{"status":"ok"}`.
 - Market search returns relevant active markets.
+- The AI assistant returns explainable signals before signing.
 - Dry-run signing works without funds.
 - Real orders use the deposit wallet flow and return a CLOB response.

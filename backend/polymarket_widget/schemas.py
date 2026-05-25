@@ -69,3 +69,21 @@ class PlaceWagerResponse(BaseModel):
     signedOrder: dict[str, Any] | None = None
     exchangeResponse: dict[str, Any] | None = None
     message: str
+
+
+class WagerAdviceRequest(WagerPreviewRequest):
+    walletBalanceUsdc: str | None = Field(
+        default=None,
+        description="Optional user balance used to flag bankroll risk.",
+    )
+
+
+class WagerAdviceResponse(BaseModel):
+    recommendation: str
+    confidence: str
+    source: str = "llm"
+    summary: str
+    signals: list[str]
+    risks: list[str]
+    nextSteps: list[str]
+    disclaimer: str

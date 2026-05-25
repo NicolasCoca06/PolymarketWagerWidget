@@ -1,4 +1,4 @@
-import { createWalletClient, custom } from 'viem'
+import { createWalletClient, custom, getAddress } from 'viem'
 import type { WalletClient } from 'viem'
 import { polygon } from 'viem/chains'
 
@@ -11,45 +11,54 @@ declare global {
 }
 
 type EthereumProvider = {
+  isMetaMask?: boolean
+  providers?: EthereumProvider[]
   request(args: { method: string; params?: unknown[] }): Promise<unknown>
 }
 
 export async function connectBrowserWallet(): Promise<{ wallet: WalletClient; address: string }> {
-  await ensurePolygonNetwork()
-  const provider = window.ethereum
+  const provider = getMetaMaskProvider()
   if (!provider) {
     throw new Error('Install MetaMask to connect a wallet.')
   }
-  const wallet = createWalletClient({ chain: polygon, transport: custom(provider) })
-  await provider.request({ method: 'eth_requestAccounts' })
-  const [address] = await wallet.getAddresses()
-  if (!address) {
+
+  const accounts = await provider.request({ method: 'eth_requestAccounts' })
+  const [address] = Array.isArray(accounts) ? accounts : []
+  if (typeof address !== 'string') {
     throw new Error('No address was found in MetaMask.')
   }
-  return { wallet, address }
+
+  await ensurePolygonNetwork(provider)
+  const checksummedAddress = getAddress(address)
+  const wallet = createWalletClient({
+    account: checksummedAddress,
+    chain: polygon,
+    transport: custom(provider),
+  })
+  return { wallet, address: checksummedAddress }
 }
 
-export async function ensurePolygonNetwork() {
-  if (!window.ethereum) {
+export async function ensurePolygonNetwork(provider = getMetaMaskProvider()) {
+  if (!provider) {
     throw new Error('Install MetaMask to connect a wallet.')
   }
 
-  const chainId = await window.ethereum.request({ method: 'eth_chainId' })
+  const chainId = await provider.request({ method: 'eth_chainId' })
   if (chainId === POLYGON_CHAIN_HEX) {
     return
   }
 
   try {
-    await window.ethereum.request({
+    await provider.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: POLYGON_CHAIN_HEX }],
     })
-    } catch (error: unknown) {
-      if (!isProviderError(error, 4902)) {
-        throw error
-      }
+  } catch (error: unknown) {
+    if (!isProviderError(error, 4902)) {
+      throw error
+    }
 
-    await window.ethereum.request({
+    await provider.request({
       method: 'wallet_addEthereumChain',
       params: [
         {
@@ -71,4 +80,17 @@ function isProviderError(error: unknown, code: number) {
     && 'code' in error
     && (error as { code?: unknown }).code === code
   )
+}
+
+function getMetaMaskProvider() {
+  const provider = window.ethereum
+  if (!provider) {
+    return undefined
+  }
+
+  if (provider.providers?.length) {
+    return provider.providers.find((item) => item.isMetaMask) ?? provider.providers[0]
+  }
+
+  return provider
 }

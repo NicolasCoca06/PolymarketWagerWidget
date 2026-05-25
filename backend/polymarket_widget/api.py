@@ -3,12 +3,15 @@ from __future__ import annotations
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from .advisor import build_wager_advice
 from .clob_demo import sign_or_post_demo_order
 from .markets import fetch_market_by_condition_id, fetch_markets
 from .schemas import (
     MarketSummary,
     PlaceWagerRequest,
     PlaceWagerResponse,
+    WagerAdviceRequest,
+    WagerAdviceResponse,
     WalletResponse,
     WagerPreviewRequest,
     WagerPreviewResponse,
@@ -59,6 +62,11 @@ def _register_routes(app: FastAPI) -> None:
     async def preview_wager(request: WagerPreviewRequest) -> WagerPreviewResponse:
         market = await fetch_market_by_condition_id(request.marketId)
         return build_wager_preview(market, request)
+
+    @app.post("/api/wagers/advice", response_model=WagerAdviceResponse)
+    async def advise_wager(request: WagerAdviceRequest) -> WagerAdviceResponse:
+        market = await fetch_market_by_condition_id(request.marketId)
+        return await build_wager_advice(market, request)
 
     @app.post("/api/wagers/place", response_model=PlaceWagerResponse)
     async def place_wager(request: PlaceWagerRequest) -> PlaceWagerResponse:
